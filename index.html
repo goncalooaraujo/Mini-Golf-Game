@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Golf</title>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/",
+        "cannon-es": "./node_modules/cannon-es/dist/cannon-es.js"
+      }
+    }
+  </script>
+    <style>
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes waveFlag {
+            0% {
+                transform: skewX(0deg);
+            }
+
+            25% {
+                transform: skewX(5deg);
+            }
+
+            50% {
+                transform: skewX(0deg);
+            }
+
+            75% {
+                transform: skewX(-5deg);
+            }
+
+            100% {
+                transform: skewX(0deg);
+            }
+        }
+
+        @keyframes rollBall {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            25% {
+                transform: translate(15px, 5px) rotate(90deg);
+            }
+
+            50% {
+                transform: translate(30px, 0) rotate(180deg);
+            }
+
+            75% {
+                transform: translate(15px, -5px) rotate(270deg);
+            }
+
+            100% {
+                transform: translate(0, 0) rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a5c2d;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            transition: background-color 0.5s ease;
+        }
+
+        body.dark-mode {
+            background-color: #0f3319;
+        }
+
+        .grass {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .grass-blade {
+            position: absolute;
+            width: 3px;
+            height: 15px;
+            background-color: #2a7d3d;
+            border-radius: 0 10px 0 10px;
+            transform-origin: bottom center;
+            animation: sway 2s infinite ease-in-out;
+            opacity: 0.7;
+            transition: background-color 0.5s ease;
+        }
+
+        body.dark-mode .grass-blade {
+            background-color: #1e5c2c;
+        }
+
+        @keyframes sway {
+            0% {
+                transform: rotate(-5deg);
+            }
+
+            50% {
+                transform: rotate(5deg);
+            }
+
+            100% {
+                transform: rotate(-5deg);
+            }
+        }
+
+        .title {
+            color: white;
+            font-size: 5rem;
+            font-weight: bold;
+            font-style: italic;
+            letter-spacing: 4px;
+            margin-bottom: 2rem;
+            text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3);
+            animation: float 3s infinite ease-in-out;
+            z-index: 2;
+        }
+
+        body.dark-mode .title {
+            text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .menu-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 250px;
+            z-index: 2;
+        }
+
+        .menu-button {
+            padding: 15px 0;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        .menu-button:nth-child(1) {
+            animation-delay: 0.2s;
+        }
+
+        .menu-button:nth-child(2) {
+            animation-delay: 0.4s;
+        }
+
+        .menu-button:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        .menu-button:nth-child(4) {
+            animation-delay: 0.8s;
+        }
+
+        .menu-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .menu-button:active {
+            transform: scale(0.95);
+        }
+
+        .menu-button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%);
+            transform-origin: 50% 50%;
+        }
+
+        .menu-button:focus:not(:active)::after {
+            animation: ripple 1s ease-out;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0, 0);
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: scale(20, 20);
+                opacity: 0;
+            }
+        }
+
+        .play-button {
+            background-color: #ffc107;
+            color: #333;
+        }
+
+        .settings-button {
+            background-color: #4285f4;
+            color: white;
+        }
+
+        .credits-button {
+            background-color: #9c27b0;
+            color: white;
+        }
+
+        .exit-button {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .golf-ball {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            top: 110px;
+            left: 75px;
+            box-shadow: inset -3px -3px 5px rgba(0, 0, 0, 0.2);
+            animation: rollBall 8s infinite linear;
+            z-index: 2;
+        }
+
+        body.dark-mode .golf-ball {
+            box-shadow: inset -3px -3px 5px rgba(0, 0, 0, 0.4);
+        }
+
+        .golf-hole {
+            position: absolute;
+            bottom: 80px;
+            z-index: 2;
+        }
+
+        .golf-hole-left {
+            left: 250px;
+        }
+
+        .golf-hole-right {
+            right: 250px;
+        }
+
+        .flag {
+            position: relative;
+            width: 5px;
+            height: 30px;
+            background-color: white;
+        }
+
+        .flag::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-left: 15px solid #ff4136;
+            animation: waveFlag 2s infinite ease-in-out;
+            transform-origin: left center;
+        }
+
+        .hole {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: black;
+            border-radius: 50%;
+            bottom: -5px;
+            left: -5px;
+        }
+
+        .moving-ball {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: white;
+            border-radius: 50%;
+            z-index: 1;
+            opacity: 0.6;
+        }
+
+        body.dark-mode .moving-ball {
+            opacity: 0.4;
+        }
+
+        .particle {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        /* Estilo para o menu principal */
+        #menu-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+
+        /* Estilo para o contêiner do jogo */
+        #game-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 10;
+        }
+
+        /* Barra de força */
+        #force-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 20;
+            display: none;
+        }
+
+        #force-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #4CAF50;
+            /* Cor inicial (verde) */
+            transition: width 0.1s;
+        }
+
+        /* Instruções */
+        #instructions {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 20;
+            display: none;
+        }
+
+        #clock {
+            position: absolute;
+            bottom: 25px;
+            left: 20px;
+            font-size: 28px;
+            background-color: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        #clock #score,
+        #clock #strokes {
+            font-size: 26px;
+            font-weight: 600;
+            opacity: 0.9;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Botão de voltar */
+        #back-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 20;
+            display: none;
+        }
+
+        /* Estilos para os modais */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: #1a5c2d;
+            border: 3px solid #ffc107;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            transform: translateY(-20px);
+            transition: transform 0.3s, background-color 0.5s ease;
+            color: white;
+        }
+
+        body.dark-mode .modal-content {
+            background-color: #0f3319;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 0;
+            color: #ffc107;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #dc3545;
+            transition: transform 0.2s;
+        }
+
+        .close-button:hover {
+            transform: scale(1.2);
+        }
+
+        /* Estilos específicos para o modal de definições */
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-group h3 {
+            color: #4285f4;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #4285f4;
+            padding-bottom: 5px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .setting-label {
+            font-weight: bold;
+        }
+
+        .slider-container {
+            width: 60%;
+            display: flex;
+            align-items: center;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #444;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4285f4;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: #5c9aff;
+        }
+
+        .slider-value {
+            margin-left: 10px;
+            width: 30px;
+            text-align: center;
+        }
+
+        .toggle-container {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .toggle-input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        .toggle-input:checked+.toggle-slider {
+            background-color: #4285f4;
+        }
+
+        .toggle-input:checked+.toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        /* Modo noturno/diurno toggle */
+        .toggle-slider.day-night {
+            background-color: #2196F3;
+            overflow: hidden;
+        }
+
+        .toggle-slider.day-night:before {
+            background-color: #ffeb3b;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-input:checked+.toggle-slider.day-night {
+            background-color: #3a3a3a;
+        }
+
+        .toggle-input:checked+.toggle-slider.day-night:before {
+            background-color: #f5f5f5;
+            box-shadow: inset -3px -2px 0px -2px #ddd;
+        }
+
+        /* Estilos específicos para o modal de créditos */
+        .credits-section {
+            margin-bottom: 25px;
+        }
+
+        .credits-section h3 {
+            color: #9c27b0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #9c27b0;
+            padding-bottom: 5px;
+        }
+
+        .credits-section p {
+            margin: 5px 0;
+            line-height: 1.5;
+        }
+
+        .credits-section ul {
+            padding-left: 20px;
+        }
+
+        .credits-section li {
+            margin-bottom: 5px;
+        }
+
+        .credits-name {
+            font-weight: bold;
+            color: #ffc107;
+        }
+
+        .credits-role {
+            font-style: italic;
+            color: #aaa;
+        }
+
+        .credits-link {
+            color: #4285f4;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .credits-link:hover {
+            color: #5c9aff;
+            text-decoration: underline;
+        }
+
+        .credits-logo {
+            display: block;
+            margin: 20px auto;
+            max-width: 150px;
+            border-radius: 10px;
+        }
+
+        .save-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: block;
+            margin: 20px auto 0;
+        }
+
+        .save-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Menu principal -->
+    <div id="menu-screen">
+        <!-- Fundo de grama -->
+        <div class="grass" id="grass"></div>
+
+        <!-- Bolas em movimento no fundo -->
+        <div id="moving-balls"></div>
+
+        <!-- Bola de golfe no canto superior esquerdo -->
+        <div class="golf-ball"></div>
+
+        <!-- Título do jogo -->
+        <h1 class="title">MINI GOLF</h1>
+
+        <!-- Container dos botões do menu -->
+        <div class="menu-container">
+            <button class="menu-button play-button" id="play-button">JOGAR</button>
+            <button class="menu-button settings-button" id="settings-button">DEFINIÇÕES</button>
+            <button class="menu-button credits-button" id="credits-button">CRÉDITOS</button>
+        </div>
+
+        <!-- Buraco de golfe esquerdo -->
+        <div class="golf-hole golf-hole-left">
+            <div class="flag"></div>
+            <div class="hole"></div>
+        </div>
+
+        <!-- Buraco de golfe direito -->
+        <div class="golf-hole golf-hole-right">
+            <div class="flag"></div>
+            <div class="hole"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Definições -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Definições</h2>
+                <button class="close-button" id="close-settings">&times;</button>
+            </div>
+            <div class="settings-group">
+                <h3>Áudio</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Volume da Música</span>
+                    <div class="slider-container">
+                        <input type="range" min="0" max="100" value="70" class="slider" id="music-volume">
+                        <span class="slider-value" id="music-volume-value">70%</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Volume dos Efeitos</span>
+                    <div class="slider-container">
+                        <input type="range" min="0" max="100" value="80" class="slider" id="effects-volume">
+                        <span class="slider-value" id="effects-volume-value">80%</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Silenciar</span>
+                    <label class="toggle-container">
+                        <input type="checkbox" class="toggle-input" id="mute-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Jogabilidade</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Sensibilidade da Câmera</span>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="10" value="5" class="slider" id="camera-sensitivity">
+                        <span class="slider-value" id="camera-sensitivity-value">5</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Mostrar FPS</span>
+                    <label class="toggle-container">
+                        <input type="checkbox" class="toggle-input" id="fps-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Aparência</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Modo Noturno</span>
+                    <label class="toggle-container">
+                        <input type="checkbox" class="toggle-input" id="dark-mode-toggle">
+                        <span class="toggle-slider day-night"></span>
+                    </label>
+                </div>
+            </div>
+            <button class="save-button" id="save-settings">Salvar Definições</button>
+        </div>
+    </div>
+
+    <!-- Modal de Créditos -->
+    <div id="credits-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Créditos</h2>
+                <button class="close-button" id="close-credits">&times;</button>
+            </div>
+            <div class="credits-section">
+                <h3>Desenvolvimento</h3>
+                <p><span class="credits-name">Seu Nome</span> - <span class="credits-role">Desenvolvedor
+                        Principal</span></p>
+                <p>Este jogo foi desenvolvido como um projeto de aprendizado e demonstração de habilidades em
+                    desenvolvimento de jogos usando tecnologias web modernas.</p>
+            </div>
+            <div class="credits-section">
+                <h3>Tecnologias Utilizadas</h3>
+                <ul>
+                    <li><span class="credits-name">Three.js</span> - Motor de renderização 3D</li>
+                    <li><span class="credits-name">Cannon.js</span> - Motor de física</li>
+                    <li><span class="credits-name">HTML5 & CSS3</span> - Interface e estilização</li>
+                    <li><span class="credits-name">JavaScript</span> - Programação e lógica do jogo</li>
+                </ul>
+            </div>
+            <div class="credits-section">
+                <h3>Recursos</h3>
+                <p>Modelos 3D, texturas e sons utilizados neste jogo foram obtidos de diversas fontes, incluindo:</p>
+                <ul>
+                    <li><a href="https://sketchfab.com" class="credits-link" target="_blank">Sketchfab</a> - Modelos 3D
+                    </li>
+                    <li><a href="https://freesound.org" class="credits-link" target="_blank">Freesound</a> - Efeitos
+                        sonoros</li>
+                    <li><a href="https://pixabay.com" class="credits-link" target="_blank">Pixabay</a> - Músicas e
+                        texturas</li>
+                </ul>
+            </div>
+            <div class="credits-section">
+                <h3>Agradecimentos Especiais</h3>
+                <p>Um agradecimento especial a todos que testaram o jogo e forneceram feedback valioso durante o
+                    desenvolvimento.</p>
+            </div>
+            <div class="credits-section">
+                <p style="text-align: center; margin-top: 30px;">Mini Golf &copy; 2024 - Todos os direitos reservados
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contêiner do jogo -->
+    <div id="game-container">
+
+        <!-- Barra de força -->
+        <div id="force-bar">
+            <div id="force-fill"></div>
+        </div>
+
+        <!-- Instruções -->
+        <div id="instructions">
+            <p>A/D - Girar câmera</p>
+            <p>ESPAÇO - Segurar para carregar força, soltar para bater</p>
+        </div>
+
+        <div id="hud">
+            <div id="clock">
+                <div id="score">Pontos: 0</div>
+                <div id="strokes">Tacadas: 0</div>
+                <p>00:00:000</p>
+            </div>
+            <div id="force-bar">
+                <div id="force-fill" style="background: red; width: 0%; height: 20px;"></div>
+            </div>
+        </div>
+
+        <!-- Botão de voltar -->
+        <button id="back-button">Voltar ao Menu</button>
+    </div>
+
+    <script>
+        // Criar lâminas de grama no fundo
+        const grass = document.getElementById('grass');
+        for (let i = 0; i < 200; i++) {
+            const blade = document.createElement('div');
+            blade.className = 'grass-blade';
+            blade.style.left = `${Math.random() * 100}%`;
+            blade.style.bottom = `${Math.random() * 20}%`;
+            blade.style.height = `${10 + Math.random() * 20}px`;
+            blade.style.animationDelay = `${Math.random() * 2}s`;
+            grass.appendChild(blade);
+        }
+
+        // Criar bolas em movimento no fundo
+        const movingBalls = document.getElementById('moving-balls');
+        for (let i = 0; i < 10; i++) {
+            createMovingBall();
+        }
+
+        function createMovingBall() {
+            const ball = document.createElement('div');
+            ball.className = 'moving-ball';
+
+            // Posição inicial aleatória
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight;
+
+            // Velocidade aleatória
+            const speedX = (Math.random() - 0.5) * 2;
+            const speedY = (Math.random() - 0.5) * 2;
+
+            ball.style.left = `${x}px`;
+            ball.style.top = `${y}px`;
+
+            movingBalls.appendChild(ball);
+
+            // Animar a bola
+            let posX = x;
+            let posY = y;
+
+            function animate() {
+                posX += speedX;
+                posY += speedY;
+
+                // Verificar colisão com as bordas
+                if (posX < 0 || posX > window.innerWidth) {
+                    posX = Math.max(0, Math.min(posX, window.innerWidth));
+                    ball.remove();
+                    createMovingBall();
+                    return;
+                }
+
+                if (posY < 0 || posY > window.innerHeight) {
+                    posY = Math.max(0, Math.min(posY, window.innerHeight));
+                    ball.remove();
+                    createMovingBall();
+                    return;
+                }
+
+                ball.style.left = `${posX}px`;
+                ball.style.top = `${posY}px`;
+
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+
+        // Efeito de partículas ao clicar nos botões
+        const buttons = document.querySelectorAll('.menu-button');
+
+        buttons.forEach(button => {
+            button.addEventListener('click', function (e) {
+                createParticles(e.clientX, e.clientY, this.classList[1]);
+            });
+        });
+
+        // Configurar o botão JOGAR para iniciar o jogo
+        document.getElementById('play-button').addEventListener('click', function () {
+            // Esconder o menu principal
+            document.getElementById('menu-screen').style.display = 'none';
+
+            // Mostrar o contêiner do jogo e elementos relacionados
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('force-bar').style.display = 'block';
+            document.getElementById('instructions').style.display = 'block';
+            document.getElementById('clock').style.display = 'block';
+            document.getElementById('back-button').style.display = 'block';
+
+            // Carregar o script do jogo com um pequeno atraso para permitir a animação das partículas
+            setTimeout(() => {
+                // Carregar o script do jogo
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = './script.js';
+                document.body.appendChild(script);
+
+                // Adicionar os listeners para a barra de força
+            });
+        });
+
+        // Configurar o botão de voltar
+        document.getElementById('back-button').addEventListener('click', function () {
+            // Esconder o jogo e elementos relacionados
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('force-bar').style.display = 'none';
+            document.getElementById('instructions').style.display = 'none';
+            document.getElementById('clock').style.display = 'none';
+            document.getElementById('back-button').style.display = 'none';
+
+            // Mostrar o menu principal
+            document.getElementById('menu-screen').style.display = 'flex';
+
+            // Remover o canvas do Three.js e recarregar a página para limpar recursos
+            const canvas = document.querySelector('canvas');
+            if (canvas) canvas.remove();
+
+            // Remover o script para evitar duplicação
+            const scripts = document.querySelectorAll('script[src="script.js"]');
+            scripts.forEach(s => s.remove());
+
+            // Remover os listeners da barra de força
+            removeForceBarListeners();
+
+            location.reload();
+        });
+
+        // Configurações para os modais
+        const settingsModal = document.getElementById('settings-modal');
+        const creditsModal = document.getElementById('credits-modal');
+
+        // Botões para abrir modais
+        document.getElementById('settings-button').addEventListener('click', function () {
+            settingsModal.classList.add('active');
+        });
+
+        document.getElementById('credits-button').addEventListener('click', function () {
+            creditsModal.classList.add('active');
+        });
+
+        // Botões para fechar modais
+        document.getElementById('close-settings').addEventListener('click', function () {
+            settingsModal.classList.remove('active');
+        });
+
+        document.getElementById('close-credits').addEventListener('click', function () {
+            creditsModal.classList.remove('active');
+        });
+
+        // Fechar modais ao clicar fora deles
+        window.addEventListener('click', function (e) {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('active');
+            }
+            if (e.target === creditsModal) {
+                creditsModal.classList.remove('active');
+            }
+        });
+
+        // Funcionalidade para os controles de definições
+        const musicVolumeSlider = document.getElementById('music-volume');
+        const musicVolumeValue = document.getElementById('music-volume-value');
+        const effectsVolumeSlider = document.getElementById('effects-volume');
+        const effectsVolumeValue = document.getElementById('effects-volume-value');
+        const muteToggle = document.getElementById('mute-toggle');
+        const cameraSensitivitySlider = document.getElementById('camera-sensitivity');
+        const cameraSensitivityValue = document.getElementById('camera-sensitivity-value');
+        const fpsToggle = document.getElementById('fps-toggle');
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const saveSettingsButton = document.getElementById('save-settings');
+
+        // Atualizar valores dos sliders
+        musicVolumeSlider.addEventListener('input', function () {
+            musicVolumeValue.textContent = this.value + '%';
+        });
+
+        effectsVolumeSlider.addEventListener('input', function () {
+            effectsVolumeValue.textContent = this.value + '%';
+        });
+
+        cameraSensitivitySlider.addEventListener('input', function () {
+            cameraSensitivityValue.textContent = this.value;
+        });
+
+        // Alternar modo noturno/diurno
+        darkModeToggle.addEventListener('change', function () {
+            if (this.checked) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+        });
+
+        // Salvar definições
+        saveSettingsButton.addEventListener('click', function () {
+            // Aqui você pode implementar a lógica para salvar as definições
+            // Por exemplo, armazenar em localStorage ou aplicar diretamente ao jogo
+
+            // Exemplo de como salvar em localStorage:
+            const settings = {
+                musicVolume: musicVolumeSlider.value,
+                effectsVolume: effectsVolumeSlider.value,
+                muted: muteToggle.checked,
+                cameraSensitivity: cameraSensitivitySlider.value,
+                showFps: fpsToggle.checked,
+                darkMode: darkModeToggle.checked
+            };
+
+            localStorage.setItem('minigolfSettings', JSON.stringify(settings));
+
+            // Fechar o modal após salvar
+            settingsModal.classList.remove('active');
+
+            // Mostrar uma mensagem de confirmação
+            const notification = document.createElement('div');
+            notification.textContent = 'Definições salvas com sucesso!';
+            notification.style.position = 'fixed';
+            notification.style.bottom = '20px';
+            notification.style.left = '50%';
+            notification.style.transform = 'translateX(-50%)';
+            notification.style.backgroundColor = '#4CAF50';
+            notification.style.color = 'white';
+            notification.style.padding = '10px 20px';
+            notification.style.borderRadius = '5px';
+            notification.style.zIndex = '100';
+            document.body.appendChild(notification);
+
+            // Remover a notificação após alguns segundos
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.5s';
+                setTimeout(() => notification.remove(), 500);
+            }, 3000);
+        });
+
+        // Carregar definições salvas (se existirem)
+        window.addEventListener('DOMContentLoaded', function () {
+            const savedSettings = localStorage.getItem('minigolfSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+
+                musicVolumeSlider.value = settings.musicVolume;
+                musicVolumeValue.textContent = settings.musicVolume + '%';
+
+                effectsVolumeSlider.value = settings.effectsVolume;
+                effectsVolumeValue.textContent = settings.effectsVolume + '%';
+
+                muteToggle.checked = settings.muted;
+
+                cameraSensitivitySlider.value = settings.cameraSensitivity;
+                cameraSensitivityValue.textContent = settings.cameraSensitivity;
+
+                fpsToggle.checked = settings.showFps;
+
+                // Aplicar modo noturno se estiver salvo
+                if (settings.darkMode) {
+                    darkModeToggle.checked = true;
+                    document.body.classList.add('dark-mode');
+                }
+            }
+        });
+
+        // Variáveis para controlar a barra de força
+        let forceBarInterval;
+        let forceValue = 0;
+        let isCharging = false;
+        let chargeStartTime = 0;
+        const forceFill = document.getElementById('force-fill');
+
+
+        // Manipulador para o evento keydown
+        function handleKeyDown(event) {
+            if (event.code === 'Space' && !isCharging) {
+                // Iniciar o carregamento da força
+                isCharging = true;
+                chargeStartTime = Date.now();
+                forceValue = 0;
+                forceFill.style.width = '0%';
+                forceFill.style.backgroundColor = '#4CAF50'; // Verde
+
+                // Atualizar a barra de força a cada 50ms
+                forceBarInterval = setInterval(updateForceBar, 50);
+            }
+        }
+
+        // Manipulador para o evento keyup
+        function handleKeyUp(event) {
+            if (event.code === 'Space' && isCharging) {
+                // Parar o carregamento da força
+                isCharging = false;
+                clearInterval(forceBarInterval);
+                forceBarInterval = null;
+
+                // Aqui você pode adicionar código para aplicar a força à bola
+                console.log('Força aplicada:', forceValue);
+
+                // Resetar a barra após um curto período
+                setTimeout(() => {
+                    forceFill.style.width = '0%';
+                }, 500);
+            }
+        }
+
+        // Atualizar a barra de força com base no tempo
+        function updateForceBar() {
+            const elapsedTime = Date.now() - chargeStartTime;
+
+            // Calcular o valor da força (0-100) com base no tempo decorrido
+            // Tempo máximo: 2 segundos (2000ms)
+            forceValue = Math.min(100, (elapsedTime / 2000) * 100);
+
+            // Atualizar a largura da barra
+            forceFill.style.width = forceValue + '%';
+
+            // Atualizar a cor com base no tempo
+            if (elapsedTime < 667) { // 0-667ms (0-33%)
+                forceFill.style.backgroundColor = '#4CAF50'; // Verde
+            } else if (elapsedTime < 1333) { // 667-1333ms (33-66%)
+                forceFill.style.backgroundColor = '#FFC107'; // Amarelo
+            } else { // 1333-2000ms (66-100%)
+                forceFill.style.backgroundColor = '#F44336'; // Vermelho
+            }
+
+            // Parar o intervalo se atingir 100%
+            if (forceValue >= 100) {
+                clearInterval(forceBarInterval);
+            }
+        }
+
+        function createParticles(x, y, buttonClass) {
+            let color;
+
+            // Definir cor das partículas com base no botão clicado
+            if (buttonClass === 'play-button') {
+                color = '#ffc107';
+            } else if (buttonClass === 'settings-button') {
+                color = '#4285f4';
+            } else if (buttonClass === 'credits-button') {
+                color = '#9c27b0';
+            } else if (buttonClass === 'exit-button') {
+                color = '#dc3545';
+            }
+
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                document.body.appendChild(particle);
+
+                // Tamanho aleatório
+                const size = Math.random() * 8 + 2;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.backgroundColor = color;
+
+                // Posição inicial
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+
+                // Velocidade e direção aleatórias
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+
+                // Animar a partícula
+                let posX = x;
+                let posY = y;
+                let opacity = 1;
+                let scale = 1;
+
+                function animateParticle() {
+                    posX += vx;
+                    posY += vy;
+                    opacity -= 0.02;
+                    scale -= 0.01;
+
+                    if (opacity <= 0) {
+                        particle.remove();
+                        return;
+                    }
+
+                    particle.style.left = `${posX}px`;
+                    particle.style.top = `${posY}px`;
+                    particle.style.opacity = opacity;
+                    particle.style.transform = `scale(${scale})`;
+
+                    requestAnimationFrame(animateParticle);
+                }
+
+                // Iniciar com um pequeno atraso para criar um efeito de explosão
+                setTimeout(animateParticle, Math.random() * 100);
+
+                // Definir opacidade inicial após um pequeno atraso
+                setTimeout(() => {
+                    particle.style.opacity = '1';
+                }, 10);
+            }
+        }
+
+        // Redimensionar elementos ao redimensionar a janela
+        window.addEventListener('resize', function () {
+            // Limpar e recriar as bolas em movimento
+            movingBalls.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                createMovingBall();
+            }
+        });
+    </script>
+</body>
+
+</html>
