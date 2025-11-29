@@ -1,1 +1,1 @@
-IGOR GROUP LEADER
+Computacao Grafica
